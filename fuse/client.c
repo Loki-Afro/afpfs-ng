@@ -199,7 +199,7 @@ static int do_volumes(int argc,char **argv)
                 {0,0,0,0},
         };
 
-        if (argc<4) {
+        if (argc<3) {
                 usage();
                 return -1;
         }

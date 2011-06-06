@@ -359,8 +359,7 @@ static unsigned char process_volumes(struct fuse_client * c)
 
 		strcat(c->client_string, volume_name);	
 		
-		if (i != s->num_volumes - 1)
-			strcat(c->client_string, ";");	
+		strcat(c->client_string, ";");	
 	}
 
       	return AFP_SERVER_RESULT_OKAY;
