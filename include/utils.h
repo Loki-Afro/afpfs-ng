@@ -40,4 +40,5 @@ char * create_path(struct afp_server * server, char * pathname, unsigned short *
 
 int invalid_filename(struct afp_server * server, const char * filename);
 
+char *url_decode(char *str);
 #endif

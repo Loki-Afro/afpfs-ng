@@ -23,8 +23,9 @@
 #define MAX_OUTGOING_LENGTH 8192
 
 #define AFPFSD_FILENAME "afpfsd"
+
 #define DEFAULT_MOUNT_FLAGS (VOLUME_EXTRA_FLAGS_SHOW_APPLEDOUBLE|\
-	VOLUME_EXTRA_FLAGS_NO_LOCKING | VOLUME_EXTRA_FLAGS_IGNORE_UNIXPRIVS)
+	VOLUME_EXTRA_FLAGS_NO_LOCKING | VOLUME_EXTRA_FLAGS_VOL_SUPPORTS_UNIX)
 
 static char outgoing_buffer[MAX_OUTGOING_LENGTH];
 static int outgoing_len=0;
@@ -114,7 +115,7 @@ static int daemon_connect(void)
 			sizeof(servaddr.sun_family) + 
 			sizeof(servaddr.sun_path))) >=0) 
 				goto done;
-		printf("The afpfs daemon does not appear to be running for uid %d, let me start it for you\n", uid);
+		//printf("The afpfs daemon does not appear to be running for uid %d, let me start it for you\n", uid);
 
 		if (start_afpfsd()!=0) {
 			printf("Error in starting up afpfsd\n");
@@ -154,6 +155,17 @@ static void usage(void)
 "               \"DHCAST128\", \"Client Krb v2\", \"DHX2\" \n\n"
 "         -m, --map <mapname> : use this uid/gid mapping method, one of:\n"
 "               \"Common user directory\", \"Login ids\"\n"
+"    volumes [volopts] <server>\n"
+"	volumes options:\n"
+"	-u, --user <username> : log in as user <username>\n"
+"         -p, --pass <password> : use <password>\n"
+"                           If password is '-', password will be hidden\n"
+"         -o, --port <portnum> : connect using <portnum> instead of 548\n"
+"         -v, --afpversion <afpversion> set the AFP version, eg. 3.1\n"
+"         -a, --uam <uam> : use this authentication method, one of:\n"
+"               \"No User Authent\", \"Cleartxt Passwrd\", \n"
+"               \"Randnum Exchange\", \"2-Way Randnum Exchange\", \n"
+"               \"DHCAST128\", \"Client Krb v2\", \"DHX2\" \n\n"
 "    status: get status of the AFP daemon\n\n"
 "    unmount <mountpoint> : unmount\n\n"
 "    suspend <servername> : terminates the connection to the server, but\n"
@@ -168,6 +180,85 @@ static int send_command(int sock, char * msg,int len)
 {
 
 	return write(sock,msg,len);
+}
+
+static int do_volumes(int argc,char **argv)
+{
+        int c;
+        int option_index=0;
+        struct afp_server_volumes_request * req;
+        int optnum;
+        unsigned int uam_mask=default_uams_mask();
+
+        struct option long_options[] = {
+                {"afpversion",1,0,'v'},
+                {"user",1,0,'u'},
+                {"pass",1,0,'p'},
+                {"port",1,0,'o'},
+                {"uam",1,0,'a'},
+                {0,0,0,0},
+        };
+
+        if (argc<4) {
+                usage();
+                return -1;
+        }
+
+        outgoing_len=sizeof(struct afp_server_volumes_request)+1;
+        req = (void *) outgoing_buffer+1;
+        memset(outgoing_buffer,0,outgoing_len);
+        outgoing_buffer[0]=AFP_SERVER_COMMAND_VOLUMES;
+        afp_default_url(&req->url);
+        req->url.port=548;
+
+        while(1) {
+                optnum++;
+                c = getopt_long(argc,argv,"a:u:o:p:v:",
+                        long_options,&option_index);
+                if (c==-1) break;
+                switch(c) {
+                case 'a':
+                        if (strcmp(optarg,"guest")==0)
+                                uam_mask=UAM_NOUSERAUTHENT;
+                       else
+                                uam_mask=uam_string_to_bitmap(optarg);
+                        break;
+                case 'u':
+                        snprintf(req->url.username,AFP_MAX_USERNAME_LEN,"%s",optarg);
+                        break;
+                case 'o':
+                        req->url.port=strtol(optarg,NULL,10);
+                        break;
+                case 'p':
+                        snprintf(req->url.password,AFP_MAX_PASSWORD_LEN,"%s",optarg);
+                        break;
+                case 'v':
+                        req->url.requested_version=strtol(optarg,NULL,10);
+                        break;
+                }
+        }
+
+        if (strcmp(req->url.password, "-") == 0) {
+                char *p = getpass("AFP Password: ");
+                if (p)
+                        snprintf(req->url.password,AFP_MAX_PASSWORD_LEN,"%s",p);
+        }
+
+	optnum=optind+1;
+
+	memcpy(req->url.servername, argv[optnum], strlen(argv[optnum]));
+
+        if (uam_mask==0) {
+                printf("Unknown UAM\n");
+                return -1;
+        }
+
+        req->url.requested_version=31;
+        req->uam_mask=uam_mask;
+        req->map=AFP_MAPPING_UNKNOWN;
+	
+        return 0;
+
 }
 
 static int do_exit(int argc,char **argv)
@@ -270,6 +361,7 @@ static int do_mount(int argc, char ** argv)
 	struct afp_server_mount_request * req;
 	int optnum;
 	unsigned int uam_mask=default_uams_mask();
+	char* volume_decoded = NULL;
 
 	struct option long_options[] = {
 		{"afpversion",1,0,'v'},
@@ -343,11 +435,24 @@ static int do_mount(int argc, char ** argv)
 		printf("No volume or mount point specified\n");
 		return -1;
 	}
+	
 	if (sscanf(argv[optnum++],"%[^':']:%[^':']",
 		req->url.servername,req->url.volumename)!=2) {
 		printf("Incorrect server:volume specification\n");
 		return -1;
 	}
+
+        volume_decoded = url_decode(req->url.volumename);
+
+	if(volume_decoded == NULL) {
+		printf("Unable to decode volume name\n");
+		return -1;
+        }
+
+	memset(req->url.volumename, 0, sizeof(req->url.volumename));
+	memcpy(req->url.volumename, volume_decoded, strlen(volume_decoded));
+	free(volume_decoded);
+
 	if (uam_mask==0) {
 		printf("Unknown UAM\n");
 		return -1;
@@ -493,6 +598,8 @@ static int prepare_buffer(int argc, char * argv[])
 
 	} else if (strncmp(argv[1],"unmount",7)==0) {
 		return do_unmount(argc,argv);
+	} else if (strncmp(argv[1],"volumes",7)==0) {
+		return do_volumes(argc,argv);
 	} else if (strncmp(argv[1],"exit",4)==0) {
 		return do_exit(argc,argv);
 

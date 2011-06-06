@@ -326,6 +326,46 @@ static unsigned char process_resume(struct fuse_client * c)
 	
 }
 
+static unsigned char process_volumes(struct fuse_client * c)
+{
+        struct afp_server_mount_request * req;
+        struct afp_server  * s=NULL;
+        struct afp_volume * volume;
+        struct afp_connection_request conn_req;
+        int ret;
+	int i;
+
+        if ((c->incoming_size-1) < sizeof(struct afp_server_volumes_request))
+                return AFP_SERVER_RESULT_ERROR;
+
+        req=(void *) c->incoming_string+1;
+
+        memset(&conn_req,0,sizeof(conn_req));
+
+        conn_req.url=req->url;
+        conn_req.uam_mask=req->uam_mask;
+
+        if ((s=afp_server_full_connect(c,&conn_req))==NULL) {
+                signal_main_thread();
+                return AFP_SERVER_RESULT_ERROR;
+        }
+
+	memset(c->client_string, 0, sizeof(c->client_string));
+
+    	for(i=0; i<s->num_volumes; i++)
+    	{
+      		const char* volume_name = s->volumes[i].volume_name_printable;
+		int client_string_len = strlen(c->client_string);
+
+		strcat(c->client_string, volume_name);	
+		
+		if (i != s->num_volumes - 1)
+			strcat(c->client_string, ";");	
+	}
+
+      	return AFP_SERVER_RESULT_OKAY;
+}
+
 static unsigned char process_unmount(struct fuse_client * c)
 {
 	struct afp_server_unmount_request * req;
@@ -578,6 +618,9 @@ static void * process_command_thread(void * other)
 		break;
 	case AFP_SERVER_COMMAND_EXIT: 
 		ret=process_exit(c);
+		break;
+	case  AFP_SERVER_COMMAND_VOLUMES:
+		ret=process_volumes(c);
 		break;
 	default:
 		log_for_client((void *)c,AFPFSD,LOG_ERR,"Unknown command\n");
