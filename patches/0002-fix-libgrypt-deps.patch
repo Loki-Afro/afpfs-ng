@@ -1,0 +1,22 @@
+diff --git a/configure b/configure
+index 79d0eeb..0ab8ff8 100755
+--- a/configure
++++ b/configure
+@@ -21492,7 +21492,7 @@ if test "${ac_cv_lib_gcrypt_gcry_cipher_open+set}" = set; then
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+ else
+   ac_check_lib_save_LIBS=$LIBS
+-LIBS="-lgcrypt  $LIBS"
++LIBS="-lgcrypt -lgpg-error $LIBS"
+ cat >conftest.$ac_ext <<_ACEOF
+ /* confdefs.h.  */
+ _ACEOF
+@@ -21552,7 +21552,7 @@ if test $ac_cv_lib_gcrypt_gcry_cipher_open = yes; then
+ #define HAVE_LIBGCRYPT 1
+ _ACEOF
+ 
+-  LIBS="-lgcrypt $LIBS"
++  LIBS="-lgcrypt -lgpg-error -liconv $LIBS"
+ 
+ fi
+ 
