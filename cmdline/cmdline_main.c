@@ -6,14 +6,17 @@
 
 */
 
+#include "config.h"
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#ifdef HAVE_LIBREADLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 #include <getopt.h>
 #include <ctype.h>
 #include <signal.h>
@@ -124,6 +127,7 @@ static char ** filename_completion (const char *text,
 /* Tell the GNU Readline library how to complete.  We want to try to complete
    on command names if this is the first word in the line, or on filenames
    if not. */
+#ifdef HAVE_LIBREADLINE
 static void initialize_readline ()
 {
 	/* Allow conditional parsing of the ~/.inputrc file. */
@@ -139,6 +143,7 @@ static void initialize_readline ()
 #endif
 
 }
+#endif
 
 /* The user wishes to quit using this program.  Just set DONE non-zero. */
 static int com_quit (char *arg)
@@ -312,14 +317,25 @@ static int execute_line (char * line)
 
 void * cmdline_ui(void * other)
 {
+#ifdef HAVE_LIBREADLINE
 	char * line;
+#else
+	char line[1024];
+#endif
+
 #define ARG_LEN 1024
 	char * s, s2[ARG_LEN];
 
 
 
 	while (running)  {
+#ifdef HAVE_LIBREADLINE
 		line = readline ("afpcmd: ");
+#else
+		printf("afpcmd: ");
+		fflush(stdout);
+		scanf("%[^\n]", line);
+#endif
 
 
 		if (!line) return 0;
@@ -330,7 +346,9 @@ void * cmdline_ui(void * other)
 		s = stripwhite (line);
 		strncpy(s2,s,ARG_LEN);
 		if (*s) {
+#ifdef HAVE_LIBREADLINE
 			add_history (s);
+#endif
 			execute_line (s2);
 		}
 
@@ -411,7 +429,9 @@ int main(int argc, char *argv[])
 
 	tcgetattr(STDIN_FILENO,&save_termios);
 
+#ifdef HAVE_LIBREADLINE
 	initialize_readline ();	
+#endif
 
 	cmdline_afp_setup_client();
 
