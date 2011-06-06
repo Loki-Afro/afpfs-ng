@@ -8,4 +8,4 @@ libafpclient_la_SOURCES = afp.c codepage.c did.c dsi.c map_def.c uams.c uams_def
 
 # libafpclient_la_LDFLAGS = -module -avoid-version
 
-
+include_HEADERS = ../include/afp.h ../include/afp_protocol.h ../include/libafpclient.h
