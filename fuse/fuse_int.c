@@ -189,7 +189,7 @@ static int fuse_open(const char *path, struct fuse_file_info *fi)
 	struct afp_volume * volume=
 		(struct afp_volume *)
 		((struct fuse_context *)(fuse_get_context()))->private_data;
-	unsigned char flags = AFP_OPENFORK_ALLOWREAD;
+	unsigned char flags = O_RDONLY;
 
 	log_fuse_event(AFPFSD,LOG_DEBUG,
 		"*** Opening path %s\n",path);
