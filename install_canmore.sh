@@ -1,2 +1,2 @@
 #! /bin/sh
-make && sudo make install prefix=/opt/canmore/local
+make && sudo make install
