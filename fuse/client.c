@@ -168,6 +168,7 @@ static void usage(void)
 "               \"DHCAST128\", \"Client Krb v2\", \"DHX2\" \n\n"
 "    status: get status of the AFP daemon\n\n"
 "    unmount <mountpoint> : unmount\n\n"
+"    unmount_all <server_name> : unmount all server's volumes\n"
 "    suspend <servername> : terminates the connection to the server, but\n"
 "                           maintains the mount.  For laptop suspend/resume\n"
 "    resume  <servername> : resumes the server connection \n\n"
@@ -352,6 +353,23 @@ static int do_unmount(int argc, char ** argv)
 	outgoing_buffer[0]=AFP_SERVER_COMMAND_UNMOUNT;
 
 	return 0;
+}
+
+static int do_unmount_all(int argc, char ** argv)
+{
+        struct afp_server_unmount_all_request * req;
+        outgoing_len=sizeof(struct afp_server_unmount_all_request)+1;
+        req = (void *) outgoing_buffer+1;
+        if (argc<2) {
+                usage();
+                return -1;
+        }
+
+        memset(req,0,sizeof(*req));
+        snprintf(req->server_name,AFP_SERVER_NAME_LEN,"%s",argv[2]);
+        outgoing_buffer[0]=AFP_SERVER_COMMAND_UNMOUNT_ALL;
+
+        return 0;
 }
 
 static int do_mount(int argc, char ** argv) 
@@ -596,8 +614,11 @@ static int prepare_buffer(int argc, char * argv[])
 	} else if (strncmp(argv[1],"status",6)==0) {
 		return do_status(argc,argv);
 
+        } else if (strncmp(argv[1],"unmount_all",11)==0) {
+		return do_unmount_all(argc,argv);
 	} else if (strncmp(argv[1],"unmount",7)==0) {
 		return do_unmount(argc,argv);
+
 	} else if (strncmp(argv[1],"volumes",7)==0) {
 		return do_volumes(argc,argv);
 	} else if (strncmp(argv[1],"exit",4)==0) {

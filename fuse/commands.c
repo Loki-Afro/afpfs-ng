@@ -402,6 +402,25 @@ notfound:
 
 }
 
+static unsigned char process_unmount_all(struct fuse_client * c)
+{
+        struct afp_server_unmount_all_request * req;
+        struct afp_server * s;
+   
+        req=(void *) c->incoming_string+1;
+
+        /* Find the server */
+        if ((s=find_server_by_name(req->server_name))==NULL) {
+                log_for_client((void *) c,AFPFSD,LOG_ERR,
+                        "%s is an unknown server\n",req->server_name);
+                return AFP_SERVER_RESULT_ERROR;
+        }
+
+        afp_unmount_all_volumes(s);
+
+        return AFP_SERVER_RESULT_OKAY;
+}
+
 static unsigned char process_ping(struct fuse_client * c)
 {
 	log_for_client((void *)c,AFPFSD,LOG_INFO,
@@ -606,6 +625,9 @@ static void * process_command_thread(void * other)
 	case AFP_SERVER_COMMAND_UNMOUNT: 
 		ret=process_unmount(c);
 		break;
+        case AFP_SERVER_COMMAND_UNMOUNT_ALL:
+                ret=process_unmount_all(c);
+                break;
 	case AFP_SERVER_COMMAND_SUSPEND: 
 		ret=process_suspend(c);
 		break;
