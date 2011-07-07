@@ -11,7 +11,7 @@
 #define AFP_SERVER_COMMAND_PING 6
 #define AFP_SERVER_COMMAND_EXIT 7
 #define AFP_SERVER_COMMAND_VOLUMES 8
-#define AFP_SERVER_COMMAND_UNMOUNT_ALL 9
+#define AFP_SERVER_COMMAND_LOGOUT 9
 
 #define AFP_SERVER_RESULT_OKAY 1
 #define AFP_SERVER_RESULT_ERROR 2
@@ -30,7 +30,7 @@ struct afp_server_unmount_request {
 	char mountpoint[255];
 };
 
-struct afp_server_unmount_all_request {
+struct afp_server_logout_request {
         char server_name[AFP_SERVER_NAME_LEN];
 };
 
