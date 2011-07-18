@@ -406,16 +406,29 @@ static unsigned char process_logout(struct fuse_client * c)
 {
         struct afp_server_logout_request * req;
         struct afp_server * s;
-   
+        struct sockaddr_in address;
+
         req=(void *) c->incoming_string+1;
 
-        /* Find the server */
-        if ((s=find_server_by_name(req->server_name))==NULL) {
+        s=find_server_by_name(req->server_name);
+    
+        if(s==NULL) {
+        	struct sockaddr_in address;
+          	if (afp_get_address(NULL, req->server_name, 548, &address)<0) {
+          		log_for_client((void *) c,AFPFSD,LOG_ERR,
+				"%s is an unknown server\n",req->server_name);
+			return AFP_SERVER_RESULT_ERROR;
+		}
+		
+		s=find_server_by_address(&address);
+        }
+
+	if(s==NULL) {
                 log_for_client((void *) c,AFPFSD,LOG_ERR,
                         "%s is an unknown server\n",req->server_name);
                 return AFP_SERVER_RESULT_ERROR;
         }
-       
+
         if(something_is_mounted(s)) {
                afp_unmount_all_volumes(s);
                return AFP_SERVER_RESULT_OKAY;		
