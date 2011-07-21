@@ -68,7 +68,7 @@ int (*afp_replies[])(struct afp_server * server,char * buf, unsigned int len, vo
 	afp_getsessiontoken_reply,afp_blank_reply, NULL, NULL,
 	afp_enumerateext2_reply, NULL, NULL, NULL,    /*64 - 71 */
 	afp_listextattrs_reply, NULL, NULL, NULL,
-	afp_blank_reply, NULL, NULL, NULL,                       /*72 - 79 */
+	afp_blank_reply, NULL, afp_blank_reply, afp_blank_reply,                       /*72 - 79 */
 
 	NULL, NULL, NULL, NULL,
 	NULL, NULL, NULL, NULL,
@@ -320,8 +320,16 @@ int afp_server_remove(struct afp_server *s)
 	
 	struct dsi_request * p;
 	struct afp_server *s2;
+
+
+	if (s==NULL) 
+		goto out;
+
 	for (p=s->command_requests;p;p=p->next) {
-		pthread_cond_signal(&p->condition_cond);
+		pthread_mutex_lock(&p->waiting_mutex);
+		p->done_waiting=1;
+		pthread_cond_signal(&p->waiting_cond);
+		pthread_mutex_unlock(&p->waiting_mutex);
 	}
 
 	if (s==server_base) {
@@ -354,7 +362,7 @@ struct afp_server * afp_server_init(struct sockaddr_in * address)
 	s->exit_flag = 0;
 	s->path_encoding=kFPUTF8Name;  /* This is a default */
 	s->next=NULL;
-	s->bufsize=2048;
+	s->bufsize=4096;
 	s->incoming_buffer=malloc(s->bufsize);
 
 	s->attention_quantum=AFP_DEFAULT_ATTENTION_QUANTUM;
@@ -524,13 +532,14 @@ int afp_connect_volume(struct afp_volume * volume, struct afp_server * server,
 			kFPVolCreateDateBit|kFPVolIDBit |
 			kFPVolNameBit;
 	char new_encoding;
+     	int ret;
 
 	if (server->using_version->av_number>=30) 
 		bitmap|= kFPVolNameBit|kFPVolBlockSizeBit;
 
-	switch (afp_volopen(volume,bitmap,
-		(strlen(volume->volpassword)>0) ? volume->volpassword : NULL)) 
-	{
+	ret = afp_volopen(volume,bitmap,
+		(strlen(volume->volpassword)>0) ? volume->volpassword : NULL);
+	switch(ret){
 	case kFPAccessDenied:
 		*l+=snprintf(mesg,max-*l,
 			"Incorrect volume password\n");
@@ -543,6 +552,10 @@ int afp_connect_volume(struct afp_volume * volume, struct afp_server * server,
 	case kFPParamErr:
 		*l+=snprintf(mesg,max-*l,
 			"Could not open volume\n");
+		goto error;
+	case ETIMEDOUT:
+		*l+=snprintf(mesg,max-*l,
+			"Timed out waiting to open volume\n");
 		goto error;
 	}
 
@@ -641,7 +654,6 @@ int afp_server_connect(struct afp_server *server, int full)
 	add_server(server);
 
 	add_fd_and_signal(server->fd);
-
 	if (!full) {
 		return 0;
 	}
@@ -649,9 +661,12 @@ int afp_server_connect(struct afp_server *server, int full)
 	/* Get the status, and calculate the transmit time.  We use this to
 	* calculate our rx quantum. */
 	gettimeofday(&t1,NULL);
+
 	if ((error=dsi_getstatus(server))!=0) 
 		goto error;
 	gettimeofday(&t2,NULL);
+
+        afp_server_identify(server);
 
 	if ((t2.tv_sec - t1.tv_sec) > 0)
 		server->tx_delay= (t2.tv_sec - t1.tv_sec) * 1000;

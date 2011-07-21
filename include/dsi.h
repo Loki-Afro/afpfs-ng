@@ -6,13 +6,15 @@
 
 struct dsi_request
 {
-	unsigned short requestid;
-	unsigned char subcommand;
-	void * other;
-	unsigned char wait;
-	pthread_cond_t  condition_cond;
-	struct dsi_request * next;
-	int return_code;
+        unsigned short requestid;
+        unsigned char subcommand;
+        void * other;
+        int wait;
+        int done_waiting;
+        pthread_cond_t  waiting_cond;
+        pthread_mutex_t waiting_mutex;
+        struct dsi_request * next;
+        int return_code;
 };
 
 int dsi_receive(struct afp_server * server, void * data, int size);
