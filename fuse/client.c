@@ -647,7 +647,7 @@ int read_answer(int sock) {
 	FD_ZERO(&rds);
 	FD_SET(sock,&rds);
 	while (1) {
-		tv.tv_sec=30; tv.tv_usec=0;
+		tv.tv_sec=90; tv.tv_usec=0;
 		ords=rds;
 		ret=select(sock+1,&ords,NULL,NULL,&tv);
 		if (ret==0) {

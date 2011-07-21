@@ -64,7 +64,7 @@ int dsi_getstatus(struct afp_server * server)
 	rx.size=0;
 	dsi_setup_header(server,&header,DSI_DSIGetStatus);
 	/* We're intentionally ignoring the results */
-	ret=dsi_send(server,(char *) &header,sizeof(struct dsi_header),20,
+	ret=dsi_send(server,(char *) &header,sizeof(struct dsi_header),60,
 		0,(void *) &rx);
 
 	free(rx.data);
