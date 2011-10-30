@@ -454,7 +454,7 @@ static int do_mount(int argc, char ** argv)
 		return -1;
 	}
 	
-	if (sscanf(argv[optnum++],"%[^':']:%[^':']",
+	if (sscanf(argv[optnum++],"%[^:]:%[^:]",
 		req->url.servername,req->url.volumename)!=2) {
 		printf("Incorrect server:volume specification\n");
 		return -1;
